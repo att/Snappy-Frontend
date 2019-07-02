@@ -1,0 +1,33 @@
+# Snappy database information
+export SNAPPY_USER=snappy
+export SNAPPY_PW=password
+export SNAPPY_HOST=10.0.1.42
+export SNAPPY_DB=snappy
+export SNAPPY_PORT=30303
+
+# Openstack database information (for Cinder backups)
+export OPENSTACK_HOST=mariadb.openstack.svc.cluster.local
+export OPENSTACK_USER=nova
+export OPENSTACK_PW=my-openstack-pw
+export OPENSTACK_DB=nova
+export OPENSTACK_PORT=3306
+
+# Logging info
+export SNAPPY_LOG_NAME="Snappy Backups"
+export SNAPPY_LOG_EMAIL="snappy@mycompany.com"
+
+# Local Sqlite3 table filenames
+#
+# A JSON file describing the entries for the 3 tables:
+#    Sources, Targets, Tenants
+export FRONTEND_DB_JSON_FILENAME="./frontendTables.json"
+# an SQL dump file that is converted from JSON
+# with the script <tablesJsonToSql.py>
+# this is used to start the local sqlite3 DB each time
+# the Snappy Frontend is restarted
+export FRONTEND_DB_SQL_FILENAME="./frontendTables.sql"
+# the binary file used by sqlite3
+export FRONTEND_DB_FILENAME="./frontendTables.db"
+
+# Kubernetes config file location (for Kubernetes backups)
+export KUBECONFIG="$HOME/.kube/kubernetes-admin.conf"

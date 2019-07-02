@@ -1,0 +1,31 @@
+#!/bin/bash
+
+USAGE="Usage:  ./frontend-db-list [full]\nA summary will be listed by default.  The full listing is optional"
+
+if ([[ "$#" -gt 1 ]])
+then
+  echo -e $USAGE
+  exit 1
+fi
+
+
+echo ""
+echo "Table:  tenants"
+sqlite3 -header $FRONTEND_DB_FILENAME "select rowid,* from tenants" | column -t -s "|"
+
+echo ""
+echo "Table:  sources"
+
+if [ "$1" = "full" ]; then
+    sqlite3 -header $FRONTEND_DB_FILENAME "select rowid,* from sources" | column -t -s "|"
+
+    echo ""
+    echo "Table:  targets"
+    sqlite3 -header $FRONTEND_DB_FILENAME "select rowid,* from targets" | column -t -s "|"
+else
+    sqlite3 -header $FRONTEND_DB_FILENAME "select rowid,source_name,sp_name from sources" | column -t -s "|"
+
+    echo ""
+    echo "Table:  targets"
+    sqlite3 -header $FRONTEND_DB_FILENAME "select rowid,target_name,tp_name from targets" | column -t -s "|"
+fi

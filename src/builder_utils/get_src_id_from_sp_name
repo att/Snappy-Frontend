@@ -1,0 +1,8 @@
+#!/bin/bash
+
+SP_NAME=$1
+
+# then get the source's ID (row id)
+SOURCE_ID=$(sqlite3 $FRONTEND_DB_FILENAME "select rowid from sources where sp_name='$SP_NAME'";)
+
+echo $SOURCE_ID

@@ -1,0 +1,6 @@
+'{
+    "full_bk_intvl" : BACKUP_INTERVAL,
+    "incr_bk_intvl" : BIGGER_INTERVAL,
+    "count": NUM_BACKUPS,
+    "sched_time": 0
+}'

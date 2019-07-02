@@ -1,0 +1,14 @@
+#!/bin/bash
+
+DB_USER=$SNAPPY_USER
+DB_PASS=$SNAPPY_PW
+DB=$SNAPPY_DB
+IP=$SNAPPY_HOST
+PORT=$SNAPPY_PORT
+
+ONE=$(mysql -u "$DB_USER" -h "$IP" -P "$PORT" --password="$DB_PASS" --database="$DB" -e "SELECT arg2 FROM jobs where id = '$1'" | sed -n 2p)
+
+echo $ONE
+
+#TWO=${ONE//\"/\\\"}
+#echo $TWO

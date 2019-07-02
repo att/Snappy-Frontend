@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# create a JSON string for a target
+ROWID=$1
+
+# Get all the data we need in one string
+fulloutput=$(sqlite3 $FRONTEND_DB_FILENAME "select tp_id,tp_name,tp_ver,tp_param from targets where rowid=$ROWID;")
+
+# Split it into fields
+tp_id=$(echo $fulloutput | cut -d '|' -f1)
+tp_name=$(echo $fulloutput | cut -d '|' -f2)
+tp_ver=$(echo $fulloutput | cut -d '|' -f3)
+tp_param=$(echo $fulloutput | cut -d '|' -f4)
+
+# construct a JSON string with all the data
+json='{'
+json=$json'"tp_id":"'$tp_id'",'
+json=$json'"tp_name":"'$tp_name'",'
+json=$json'"tp_ver":"'$tp_ver'",'
+json=$json'"tp_param":'$tp_param
+json=$json'}'
+
+echo $json

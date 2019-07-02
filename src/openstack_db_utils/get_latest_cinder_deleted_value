@@ -1,0 +1,29 @@
+#!/bin/bash
+
+DB_USER=$OPENSTACK_USER
+DB_PASS=$OPENSTACK_PW
+DB=$OPENSTACK_DB
+IP=$OPENSTACK_HOST
+PORT=$OPENSTACK_PORT
+
+CINDER_ID=$1
+
+# Every time a Cinder volume is attached, a new entry is put into the Cinder DB, so there
+# can be many entries for a single Cinder volume.
+# We want to use the entry for an attached volume (i.e. when column "deleted"=0) or when if is not
+# attached, use the most recent version, which is the entry with the  max value in the  "deleted" column.
+
+min_deleted=$(mysql -u "$DB_USER" -h "$IP" -P "$PORT" --password="$DB_PASS" -e "use $OPENSTACK_DB;SELECT min(deleted) from block_device_mapping where volume_id='$CINDER_ID'")
+max_deleted=$(mysql -u "$DB_USER" -h "$IP" -P "$PORT" --password="$DB_PASS" -e "use $OPENSTACK_DB;SELECT max(deleted) from block_device_mapping where volume_id='$CINDER_ID'")
+
+min_deleted_value=$(echo $min_deleted | awk '{print $2}')
+max_deleted_value=$(echo $max_deleted | awk '{print $2}')
+
+deleted_match=$max_deleted_value
+
+if [ "$min_deleted2" == "0" ]
+then
+    deleted_match=$min_deleted_value
+fi
+
+echo $deleted_match

@@ -1,0 +1,4 @@
+#!/bin/bash
+PV=$(/home/jauzins/snappy/frontend/getPVfromPVC.py $1)
+RBD=$(/home/jauzins/snappy/frontend/getRBDfromPV.py $PV)
+echo $RBD

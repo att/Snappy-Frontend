@@ -1,0 +1,52 @@
+# 3 tables are used:
+#	tenants
+#	sources
+#	targets
+
+CREATE TABLE tenants (
+   name text,
+   password text,
+   target_name text
+);
+
+
+CREATE TABLE sources (
+   source_name text,
+   sp_id text,
+   sp_name text,
+   sp_ver text,
+   sp_param text
+);
+
+CREATE TABLE targets (
+   target_name text,
+   tp_id text,
+   tp_name text,
+   tp_ver text,
+   tp_param text
+);
+
+
+# sample BASH commands
+
+# add a new tenant
+sqlite3 tenants-sources-targets.db "insert into tenants (name, password, target_name) values ('default','none','remote Swift SDS')";
+sqlite3 tenants-sources-targets.db "insert into tenants (name, password, target_name) values ('targetsds','snappy','remote Swift SDS')";
+sqlite3 tenants-sources-targets.db "insert into tenants (name, password, target_name) values ('targethayward','snappy','remote Swift Springfield')";
+
+
+# add a new RBD source
+sqlite3 tenants-sources-targets.db "insert into sources (source_name, sp_id, sp_name, sp_ver, sp_param) values ('local RBD','0','rbd','1.0.0', '{\"user\": \"admin\",\"mon_host\": \"10.11.12.13\",\"key\": \"AQDhTGZa789AABAA+fLCRF123lvJ4Bk456ZfGg==\",\"pool\": \"rbd\"}')";
+
+
+# add a new Swift target
+sqlite3 tenants-sources-targets.db "insert into targets (target_name, tp_id, tp_name, tp_ver, tp_param) values ('remote Swift SDS','1000','swift','0.1.0', '{\"auth_method\": \"tempauth\",\"url\": \"http://192.168.9.2:8080/auth/v1.0\",\"user\": \"swift\",\"password\": \"opensesame\",\"container\": \"sds_backups\",\"project\": \"snappy\"}')";
+
+# add a new S3 target
+sqlite3 tenants-sources-targets.db "insert into targets (target_name, tp_id, tp_name, tp_ver, tp_param) values ('remote S3 AWS','1001','s3','0.1.0', '{\"url\": \"s3.us-east-1.amazonaws.com\",\"user\": \"11111111ATIMYCY7MLQ\",\"password\": \"2222222233333333444444444tO8G3QL3NFZ8BN6\",\"container\": \"snappy-bucket-1\",\"region\": \"us-east-1\"}')"
+
+# show all in the tenants table
+sqlite3 tenants-sources-targets.db "select * from tenants";
+
+# delte an entry
+sqlite3 tenants-sources-targets.db "delete from targets where rowid=2";

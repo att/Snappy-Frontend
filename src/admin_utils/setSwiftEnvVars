@@ -1,0 +1,42 @@
+#!/bin/bash
+
+USAGE="Usage:  source setSwiftEnvVars <rowid>"
+
+if [[ "$#" -ne 1 ]]
+then
+  echo ""
+  echo "Sets the Swift environment variables (ST_AUTH, ST_USER, ST_KEY)"
+  echo "to values taken from one of the Swift target profiles."
+  echo ""
+  sqlite3 -header $FRONTEND_DB_FILENAME "select rowid,target_name,tp_name from targets" | column -t -s "|"
+  echo ""
+  echo -e $USAGE
+  echo ""
+  exit 1
+fi
+
+TARGET_PROFILE_ROWID=$1
+
+IS_SWIFT=$(sqlite3 $FRONTEND_DB_FILENAME "select tp_name from targets where rowid=$TARGET_PROFILE_ROWID";)
+
+if [ "$IS_SWIFT" != "swift" ]; then
+  echo "Please choose a Swift target.  Row $TARGET_PROFILE_ROWID is a $IS_SWIFT target."
+  exit 1
+fi
+
+JSON=$(sqlite3 $FRONTEND_DB_FILENAME "select tp_param from targets where rowid=$TARGET_PROFILE_ROWID";)
+
+SWIFT_URL=$(echo $JSON | jq '.url' | sed 's/"//g')
+SWIFT_USER=$(echo $JSON | jq '.user' | sed 's/"//g')
+SWIFT_PWD=$(echo $JSON | jq '.password' | sed 's/"//g')
+
+#echo $SWIFT_URL
+#echo $SWIFT_USER
+#echo $SWIFT_PWD
+
+export ST_AUTH=$SWIFT_URL
+export ST_USER=$SWIFT_USER:$SWIFT_USER
+export ST_KEY=$SWIFT_PWD
+
+TARGET_NAME=$(sqlite3 $FRONTEND_DB_FILENAME "select target_name from targets where rowid=$TARGET_PROFILE_ROWID";)
+echo "Environment variables set for Swift target:  "$TARGET_NAME

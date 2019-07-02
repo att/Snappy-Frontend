@@ -1,0 +1,11 @@
+#!/bin/bash
+
+TENANT_NAME=$1
+
+# first get the target name associated with this tenant
+TARGET_NAME=$(sqlite3 $FRONTEND_DB_FILENAME "select target_name from tenants where name='$TENANT_NAME'";)
+
+# then get that target's ID (row number)
+TARGET_ID=$(sqlite3 $FRONTEND_DB_FILENAME "select rowid from targets where target_name='$TARGET_NAME'";)
+
+echo $TARGET_ID

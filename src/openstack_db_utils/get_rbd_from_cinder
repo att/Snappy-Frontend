@@ -1,0 +1,20 @@
+#!/bin/bash
+
+DB_USER=$OPENSTACK_USER
+DB_PASS=$OPENSTACK_PW
+DB=$OPENSTACK_DB
+IP=$OPENSTACK_HOST
+PORT=$OPENSTACK_PORT
+
+CINDER_ID=$1
+
+deleted_value=$(./openstack_db_utils/get_latest_cinder_deleted_value $CINDER_ID)
+
+output=$(mysql -u "$DB_USER" -h "$IP" -P "$PORT" --password="$DB_PASS" -e "use $OPENSTACK_DB;SELECT connection_info from block_device_mapping where deleted='$deleted_value' and volume_id='$CINDER_ID'")
+
+prefix="connection_info"
+output2=${output#$prefix}
+
+poolandid=$(echo $output2 | jq '.data' | jq '.name' | tr -d \")
+rbd="${poolandid##*/}"
+echo $rbd

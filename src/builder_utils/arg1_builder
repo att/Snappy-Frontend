@@ -1,0 +1,18 @@
+#!/bin/bash
+
+USAGE="Usage:  ./arg1_builder <full_backup_interval> <incremental_backup_interval> <num_total_backups>"
+
+if [[ "$#" -ne 3 ]]
+then
+  echo -e $USAGE
+  exit 1
+fi
+
+FULL_BACKUP_INTERVAL=$1
+INCREMENTAL_BACKUP_INTERVAL=$2
+NUMBER_OF_BACKUPS=$3
+
+arg1=$(sed -e "s~BACKUP_INTERVAL~$FULL_BACKUP_INTERVAL~g" builder_utils/arg1_template | sed -e "s~BIGGER_INTERVAL~$INCREMENTAL_BACKUP_INTERVAL~g" | sed -e "s~NUM_BACKUPS~$NUMBER_OF_BACKUPS~g")
+
+echo $arg1
+

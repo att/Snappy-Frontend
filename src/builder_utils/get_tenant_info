@@ -1,0 +1,9 @@
+#!/bin/bash
+
+TENANT_NAME=$1
+
+# get the information associated with this tenant
+# (this also answers the question of whether or not this tenant exists)
+TENANT_INFO=$(sqlite3 $FRONTEND_DB_FILENAME "select rowid,* from tenants where name='$TENANT_NAME'";)
+
+echo $TENANT_INFO

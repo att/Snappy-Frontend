@@ -1,0 +1,32 @@
+#!/bin/bash
+
+USAGE="Usage:  ./restore <volume_uuid> <job_id>"
+
+if ([[ "$#" -ne 2 ]])
+then
+  echo -e $USAGE
+  exit 1
+fi
+
+VOLUME_ID=$1
+JOB_ID=$2
+FEID36=$(echo -n $VOLUME_ID | tail -c 36)
+
+# construct the arguments to be used
+# argument 1 for the database entry
+ARG1="'{\"rstr_to_job_id\" : $JOB_ID}'"
+
+DB_USER=$SNAPPY_USER
+DB_PASS=$SNAPPY_PW
+DB=$SNAPPY_DB
+IP=$SNAPPY_HOST
+PORT=$SNAPPY_PORT
+
+#echo "logging into db $DB as $DB_USER at $IP port $PORT"
+
+LOG=$(builder_utils/log_builder)
+CMD="start transaction; insert into jobs (feid,state,policy,arg0,arg1,log,parent,grp,root) values (\"$FEID36\",1,7,'rstr_single',$ARG1,$LOG,$JOB_ID,$JOB_ID,$JOB_ID);SELECT last_insert_id(); commit"
+
+#echo $CMD
+
+mysql -u "$DB_USER" -h "$IP" -P "$PORT" --database="$DB" --password="$DB_PASS" -e "$CMD"

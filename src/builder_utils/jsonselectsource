@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# create a JSON string for a souce (specified by its row ID that is passed in)
+ROWID=$1
+
+# Get all the data we need in one string
+fulloutput=$(sqlite3 $FRONTEND_DB_FILENAME "select sp_id,sp_name,sp_ver,sp_param from sources where rowid=$ROWID;")
+
+# Split it into fields
+sp_id=$(echo $fulloutput | cut -d '|' -f1)
+sp_name=$(echo $fulloutput | cut -d '|' -f2)
+sp_ver=$(echo $fulloutput | cut -d '|' -f3)
+sp_param=$(echo $fulloutput | cut -d '|' -f4)
+
+# construct a JSON string with all the data
+json='{'
+json=$json'"sp_id":"'$sp_id'",'
+json=$json'"sp_name":"'$sp_name'",'
+json=$json'"sp_ver":"'$sp_ver'",'
+json=$json'"sp_param":'$sp_param
+json=$json'}'
+
+echo $json

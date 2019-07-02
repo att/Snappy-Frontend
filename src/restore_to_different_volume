@@ -1,0 +1,70 @@
+#!/bin/bash
+
+USAGE="Usage:  ./restore_to_different_volume <volume_id> <job_id> <volume_type>"
+
+if ([[ "$#" -ne 3 ]])
+then
+  echo -e $USAGE
+  exit 1
+fi
+
+VOLUME_ID=$1
+JOB_ID=$2
+VOLUME_TYPE=$3
+
+FEID36=$(echo -n $VOLUME_ID | tail -c 36)
+
+# construct the arguments to be used
+# argument 1 for the database entry
+ARG1="'{\"rstr_to_job_id\" : $JOB_ID}'"
+
+#copy over ARG2 from JOB_N
+ARG2_STEP1=$(./snappy_db_utils/get_arg2_from_jobid $JOB_ID)
+
+#overwrite sp.params: {user, key, mon_host, pool} based on VOLUME_TYPE and their values in the source table
+SP_PARAM=$(builder_utils/get_params_from_sp_name $VOLUME_TYPE)
+
+USER=$(echo $SP_PARAM | jq '.user' | sed 's/"//g')
+KEY=$(echo $SP_PARAM | jq '.key' | sed 's/"//g')
+MON_HOST=$(echo $SP_PARAM | jq '.mon_host' | sed 's/"//g')
+POOL=$(echo $SP_PARAM | jq '.pool' | sed 's/"//g')
+
+#USER="Margaret"
+#KEY="house_key"
+#MON_HOST="123.45.67.89"
+#POOL="swimming_pool"
+
+ARG2_STEP2=$(echo $ARG2_STEP1 | jq --arg user "$USER" '.sp_param.user = $user')
+ARG2_STEP3=$(echo $ARG2_STEP2 | jq --arg key "$KEY" '.sp_param.key = $key')
+ARG2_STEP4=$(echo $ARG2_STEP3 | jq --arg mon_host "$MON_HOST" '.sp_param.mon_host = $mon_host')
+ARG2_STEP5=$(echo $ARG2_STEP4 | jq --arg pool "$POOL" '.sp_param.pool = $pool')
+
+#overwrite sp.params: {image} with VOLUME_ID
+ARG2_STEP6=$(echo $ARG2_STEP5 | jq --arg image "$VOLUME_ID" '.sp_param.image = $image')
+
+#put in the surrounding single quotes and the  escape characters
+ARG2_STEP7="'$ARG2_STEP6'"
+ARG2=${ARG2_STEP7//\"/\\\"}
+
+#echo "ARG2"
+#echo $ARG2
+
+DB_USER=$SNAPPY_USER
+DB_PASS=$SNAPPY_PW
+DB=$SNAPPY_DB
+IP=$SNAPPY_HOST
+PORT=$SNAPPY_PORT
+
+
+#echo "logging into db $DB as $DB_USER at $IP port $PORT"
+
+LOG=$(builder_utils/log_builder)
+CMD="start transaction; insert into jobs (feid,state,policy,arg0,arg1,arg2,log,parent,grp,root) values (\"$FEID36\",1,7,'rstr_single',$ARG1, $ARG2, $LOG, $JOB_ID, $JOB_ID, $JOB_ID);SELECT last_insert_id(); commit"
+
+#echo $CMD
+
+mysql -u "$DB_USER" -h "$IP" -P "$PORT" --database="$DB" --password="$DB_PASS" -e "$CMD"
+
+
+
+

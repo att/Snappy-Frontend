@@ -1,0 +1,11 @@
+#!/bin/bash
+
+TENANT_NAME=$1
+
+# first the the source name associated with this tenant
+SOURCE_NAME=$(sqlite3 $FRONTEND_DB_FILENAME "select source_name from tenants where name='$TENANT_NAME'";)
+
+# then get the source's ID (row id)
+SOURCE_ID=$(sqlite3 $FRONTEND_DB_FILENAME "select rowid from sources where source_name='$SOURCE_NAME'";)
+
+echo $SOURCE_ID

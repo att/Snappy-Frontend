@@ -1,0 +1,13 @@
+#!/bin/bash
+
+ORIG_SRC_TYPE=$1
+ORIG_SRC_ID=$2
+
+LOG="concat('[[0,\"bk_single_sched\",,0,', UNIX_TIMESTAMP(), ',0,{\"cmd\":\"Insert\",\"contact\":{\"name\": \"$SNAPPY_LOG_NAME\",\"email\": \"$SNAPPY_LOG_EMAIL\"}}]]')"
+
+# if the two parameters are passed in, include them in the log entry
+if [ ${#ORIG_SRC_TYPE} -gt 0 ] && [ ${#ORIG_SRC_ID} -gt 0 ]; then
+   LOG="concat('[[0,\"bk_single_sched\",,0,', UNIX_TIMESTAMP(), ',0,{\"cmd\":\"Insert\",\"original_source_type\":\"$ORIG_SRC_TYPE\",\"original_source_id\":\"$ORIG_SRC_ID\",\"contact\":{\"name\": \"$SNAPPY_LOG_NAME\",\"email\": \"$SNAPPY_LOG_EMAIL\"}}]]')"
+fi
+
+echo $LOG

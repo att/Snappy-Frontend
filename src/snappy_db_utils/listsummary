@@ -1,0 +1,9 @@
+#!/bin/bash
+
+DB_USER=$SNAPPY_USER
+DB_PASS=$SNAPPY_PW
+DB=$SNAPPY_DB
+IP=$SNAPPY_HOST
+PORT=$SNAPPY_PORT
+
+mysql -u "$DB_USER" -h "$IP" -P "$PORT" --password="$DB_PASS" --database="$DB" -e "SELECT id,sub,next,parent,grp,root,state,done,result,feid,policy,arg0,arg1 FROM jobs"
