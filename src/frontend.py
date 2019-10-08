@@ -45,7 +45,7 @@ URLS = ('/', 'Index',
         '/v2/(.+)/jobs/', 'AddV2',
         '/v2/(.+)/jobs/(.+)', 'RestoreV2')
 
-VERSION = "0.5.7"
+VERSION = "0.5.7.1"
 index_msg = '{"status":"Snappy Frontend is running.  Submit REST commands to use.","version":"' + VERSION  + '"}'
 
 APP = web.application(URLS, globals())
