@@ -16,15 +16,14 @@ cmd = "rbd info " + rbd_volume
 try:
     p = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
     output, error = p.communicate()
+
+    if p.returncode == 0:
+        answer = "true"
+    else:
+        answer = "false"
+
 except subprocess.CalledProcessError as e:
     pass
-
-if "create_timestamp" in output:
-    answer = "true"
-
-if "error opening image" in error:
-    answer = "false"
-
 
 print answer
 
