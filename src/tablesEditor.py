@@ -67,10 +67,10 @@ def print_tables(filename):
     print("")
     print("")
 #    print("TENANTS\t\tName\tPassword\tTarget")
-    print('{:<10}  {:<30}  {:<50}  {:<10}'.format("TENANTS","Name","Password","Target"))
+    print('{:<10}  {:<30}  {:<30}  {:<30}  {:<30}'.format("TENANTS","Name","Auth_Type","Password","Target"))
     for t in data['tenants']:
 #        print("\t\t" + t['name'] + "\t" + t['password'] + "\t" + t['target_name'])
-        print('{:<10}  {:<30}  {:<50}  {:<10}'.format("", t['name'], t['password'], t['target_name']))
+        print('{:<10}  {:<30}  {:<30}  {:<30}  {:<30}'.format("", t['name'], t['auth_type'], t['password'], t['target_name']))
 
     return
 
@@ -82,7 +82,18 @@ def add_tenant(filename):
 
     # get the data needed for the new Tenant
     name = raw_input("Enter Tenant name:")
-    password = raw_input("Enter Tenant password (use \"none\" if no password is requred):")
+
+    # None and Basic is currently supported.  Other types will be added such as Token based authentication
+    auth_type = raw_input("Enter Authentication Type (None, Basic):")
+
+    if ("None" in auth_type):
+	      password = "N/A"
+    elif ("Basic" in auth_type):
+	      password = raw_input("Enter Tenant password:")
+    else:
+        auth_type = "None"
+        password = "N/A"
+
     target_name = raw_input("Enter Tenant Target Name:")
 
     data = read_in_json(filename)
@@ -90,6 +101,7 @@ def add_tenant(filename):
     # add it to the JSON
     new_entry = {}
     new_entry['name'] = name
+    new_entry['auth_type'] = auth_type
     new_entry['password'] = password
     new_entry['target_name'] = target_name
 

@@ -14,12 +14,15 @@
 '''
 
 # Verions:
-#     0.5.4:  source_type and source_id are required fields for a Backup request
-#     0.5.5:  restore to a different volume feature added
-#     0.5.6:  support for S3 target plugin
-#     0.5.7:  tablesEditor added
+#     0.5.4:     source_type and source_id are required fields for a Backup request
+#     0.5.5:     restore to a different volume feature added
+#     0.5.6:     support for S3 target plugin
+#     0.5.7:     tablesEditor added
+#     0.5.7.1:   "auth_type" added as a field to Tenants local DB
+#     0.5.7.2:   authorized checks moved to "authCheck.py"
 
 
+import authCheck
 import sqlite3
 import sys
 import re
@@ -45,7 +48,7 @@ URLS = ('/', 'Index',
         '/v2/(.+)/jobs/', 'AddV2',
         '/v2/(.+)/jobs/(.+)', 'RestoreV2')
 
-VERSION = "0.5.7.1"
+VERSION = "0.5.7.2"
 index_msg = '{"status":"Snappy Frontend is running.  Submit REST commands to use.","version":"' + VERSION  + '"}'
 
 APP = web.application(URLS, globals())
@@ -166,9 +169,6 @@ def restore_main(tenant_id, job_id):
                 ### Restore to a diffrent volume
                 if (len(web.data()) > 0):
                     is_valid, restore_type, restore_id = verify_restore_data()
-#                    print("is_valid = " + is_valid)
-#                    print("restore_type = " + restore_type)
-#                    print("restore_id = " + restore_id)
                     if ("input valid" not in is_valid):
                         return is_valid
                     return_str = '{"status":"restore to a different volume"}'
@@ -176,16 +176,13 @@ def restore_main(tenant_id, job_id):
                     # check to see if this restore_type is supported
                     cmd_str = "builder_utils/get_src_id_from_sp_name " + restore_type
                     restore_type_valid = subprocess.check_output(cmd_str.split()).strip()
- #                   print("restore_type_valid = " + restore_type_valid)
- #                   print("len = " + str(len(restore_type_valid)))
                     if (len(restore_type_valid) == 0):
                         return '{"status":"error:  restore_type <' + restore_type + '> is not supported"}'
 
                     
-                    # check to see if Authorization is needed
+                    # check to see if Authentication is needed
                     # and if so, if the creditials are correct
-                    auth = web.ctx.env.get('HTTP_AUTHORIZATION')
-                    if is_authorized_basic(tenant_id, auth) is False:
+                    if auth.is_authorized(tenant_id, auth) is False:
                         web.header('WWW-Authenticate', 'Basic realm="Snappy Frontend"')
                         web.ctx.status = '401 Unauthorized'
                         return '{"status":"ERROR:  Authentication failed for tenant <' + tenant_id + '>"}'
@@ -203,12 +200,10 @@ def restore_main(tenant_id, job_id):
                     # get the size of <restore_id> (the volume we are restoring to)
                     cmd_str = "openstack_db_utils/get_rbd_size_in_bytes.py " + restore_id
                     restore_volume_size = subprocess.check_output(cmd_str.split()).strip()
-#                    print("restore_volume_size = " + restore_volume_size)
                     
                     # get the allocated size of the backed up volume
                     cmd_str = "snappy_db_utils/get_alloc_size_from_jobid " + job_id
                     alloc_size = subprocess.check_output(cmd_str.split()).strip()
-#                    print("alloc_size = " + alloc_size)
                     
                     # check that the size <restore_id> is >= allocated size
                     if int(restore_volume_size) < int(alloc_size):
@@ -224,12 +219,10 @@ def restore_main(tenant_id, job_id):
                     cmd_str += job_id + " "
                     cmd_str += restore_type
 
-#                    print("cmd_str = " + cmd_str)
-
                     new_job_id_str = subprocess.check_output(cmd_str.split())
                 
                 else:
-                    # TODO:  first make sure that the original volume still exists
+                    # first make sure that the original volume still exists
                     cmd_str = "openstack_db_utils/does_rbd_volume_exist.py " + image_id
                     rbd_vol_exists = subprocess.check_output(cmd_str.split())
 
@@ -406,28 +399,6 @@ def does_cmd_exist(cmd):
     else:
         return True
 
-def is_authorized_basic(tenant_id, auth):
-    '''check to see if this request passes Basic Authentication'''
-    answer = True
-
-    # get the PW stored in the local frontend database
-    conn = sqlite3.connect(os.environ['FRONTEND_DB_FILENAME'])
-    cursor = conn.cursor()
-    sqlite3cmd = 'SELECT password FROM tenants WHERE name="' + tenant_id + '";'
-    cursor.execute(sqlite3cmd)
-    server_key = cursor.fetchone()[0]
-
-    # If the server's key is "none", no authentication is required
-    if server_key != "none":
-        # no authentication information as passed in
-        if auth is None:
-            answer = False
-        else:
-            # get the PW that was passed in by the client
-            client_key = re.sub('^Basic ', '', auth).strip("\n")
-            if client_key != server_key:
-                answer = False
-    return answer
 
 
 class AddV2:
@@ -443,10 +414,12 @@ class AddV2:
         if "ERROR" in input_verify:
             return input_verify
 
-        # check to see if Authorization is needed
+        # check to see if Authentication is needed
         # and if so, if the creditials are correct
         auth = web.ctx.env.get('HTTP_AUTHORIZATION')
-        if is_authorized_basic(tenant_id, auth) is False:
+
+
+        if authCheck.is_authorized(tenant_id, auth) is False:
             web.header('WWW-Authenticate', 'Basic realm="Snappy Frontend"')
             web.ctx.status = '401 Unauthorized'
             return '{"status":"ERROR:  Authentication failed for tenant <' + tenant_id + '>"}'
