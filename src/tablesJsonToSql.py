@@ -42,13 +42,14 @@ def main(filename):
 
 
     # tenants
-    db_txt += "CREATE TABLE tenants ( name text, password text, target_name text);\n"
+    db_txt += "CREATE TABLE tenants ( name text, auth_type text, password text, target_name text);\n"
 
     for t in data['tenants']:
         v1 = "'" + str(t['name']) + "'"
-        v2 = "'" + str(t['password']) + "'"
-        v3 = "'" + str(t['target_name']) + "'"
-        values = "VALUES(" + v1 + "," + v2 + "," + v3 + ");"
+        v2 = "'" + str(t['auth_type']) + "'"
+        v3 = "'" + str(t['password']) + "'"
+        v4 = "'" + str(t['target_name']) + "'"
+        values = "VALUES(" + v1 + "," + v2 + "," + v3 + "," + v4 + ");"
         db_txt += 'INSERT INTO "tenants" ' + values + "\n"
 
     return db_txt
