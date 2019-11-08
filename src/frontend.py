@@ -162,6 +162,15 @@ def restore_main(tenant_id, job_id):
             cmd_str = "snappy_db_utils/get_jobtype_from_jobid " + job_id
             jobtype = subprocess.check_output(cmd_str.split()).strip()
 
+            # check to see if Authentication is needed
+            # and if so, if the creditials are correct
+            auth = web.ctx.env.get('HTTP_AUTHORIZATION')
+
+            if authCheck.is_authorized(tenant_id, auth) is False:
+                web.header('WWW-Authenticate', 'Basic realm="Snappy Frontend"')
+                web.ctx.status = '401 Unauthorized'
+                return '{"status":"ERROR:  Authentication failed for tenant <' + tenant_id + '>"}'
+
             if "export" in jobtype:
                 cmd_str = "snappy_db_utils/get_src_image_from_jobid " + job_id
                 image_id = subprocess.check_output(cmd_str.split()).strip()
@@ -179,15 +188,6 @@ def restore_main(tenant_id, job_id):
                     if (len(restore_type_valid) == 0):
                         return '{"status":"error:  restore_type <' + restore_type + '> is not supported"}'
 
-                    
-                    # check to see if Authentication is needed
-                    # and if so, if the creditials are correct
-                    if auth.is_authorized(tenant_id, auth) is False:
-                        web.header('WWW-Authenticate', 'Basic realm="Snappy Frontend"')
-                        web.ctx.status = '401 Unauthorized'
-                        return '{"status":"ERROR:  Authentication failed for tenant <' + tenant_id + '>"}'
-                    
-                    
                     # check that the volume <restore_id> exists (the volume we are restoring to)
                     cmd_str = "openstack_db_utils/does_rbd_volume_exist.py " + restore_id
                     id_exists = subprocess.check_output(cmd_str.split())
@@ -200,11 +200,11 @@ def restore_main(tenant_id, job_id):
                     # get the size of <restore_id> (the volume we are restoring to)
                     cmd_str = "openstack_db_utils/get_rbd_size_in_bytes.py " + restore_id
                     restore_volume_size = subprocess.check_output(cmd_str.split()).strip()
-                    
+
                     # get the allocated size of the backed up volume
                     cmd_str = "snappy_db_utils/get_alloc_size_from_jobid " + job_id
                     alloc_size = subprocess.check_output(cmd_str.split()).strip()
-                    
+
                     # check that the size <restore_id> is >= allocated size
                     if int(restore_volume_size) < int(alloc_size):
                         return_str  = '{"status":"ERROR:  Not enough space.  Backup is ' + alloc_size

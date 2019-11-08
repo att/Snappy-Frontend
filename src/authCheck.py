@@ -2,6 +2,7 @@
 
 import sqlite3
 import os
+import re
 
 def is_authorized(tenant_id, auth):
     '''does this request pass Authentication'''
