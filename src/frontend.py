@@ -19,7 +19,9 @@
 #     0.5.6:     support for S3 target plugin
 #     0.5.7:     tablesEditor added
 #     0.5.7.1:   "auth_type" added as a field to Tenants local DB
-#     0.5.7.2:   authorized checks moved to "authCheck.py"
+#     0.5.7.2:   authorization checks moved to "authCheck.py"
+#     0.5.7.3:   check authorization for all Restore requests
+#     0.5.7.4:   Restore requests can proceed without access to RBD command
 
 
 import authCheck
@@ -48,7 +50,7 @@ URLS = ('/', 'Index',
         '/v2/(.+)/jobs/', 'AddV2',
         '/v2/(.+)/jobs/(.+)', 'RestoreV2')
 
-VERSION = "0.5.7.2"
+VERSION = "0.5.7.4"
 index_msg = '{"status":"Snappy Frontend is running.  Submit REST commands to use.","version":"' + VERSION  + '"}'
 
 APP = web.application(URLS, globals())
@@ -171,6 +173,8 @@ def restore_main(tenant_id, job_id):
                 web.ctx.status = '401 Unauthorized'
                 return '{"status":"ERROR:  Authentication failed for tenant <' + tenant_id + '>"}'
 
+            rbd_verified = "false"
+
             if "export" in jobtype:
                 cmd_str = "snappy_db_utils/get_src_image_from_jobid " + job_id
                 image_id = subprocess.check_output(cmd_str.split()).strip()
@@ -188,28 +192,33 @@ def restore_main(tenant_id, job_id):
                     if (len(restore_type_valid) == 0):
                         return '{"status":"error:  restore_type <' + restore_type + '> is not supported"}'
 
-                    # check that the volume <restore_id> exists (the volume we are restoring to)
-                    cmd_str = "openstack_db_utils/does_rbd_volume_exist.py " + restore_id
-                    id_exists = subprocess.check_output(cmd_str.split())
-                    if (id_exists.strip() == "false"):
-                        return_txt = '{"status":"ERROR:  Cannot restore to ' + restore_type
-                        return_txt += ' volume <' + restore_id + '> since it does not exist"}'
-                        return return_txt
+		    # do we have access to the rbd command to make verification check on it??
+	            if does_cmd_exist("rbd") is True:
 
+                        # check that the volume <restore_id> exists (the volume we are restoring to)
+                        cmd_str = "openstack_db_utils/does_rbd_volume_exist.py " + restore_id
+                        id_exists = subprocess.check_output(cmd_str.split())
+                        if (id_exists.strip() == "false"):
+                            return_txt = '{"status":"ERROR:  Cannot restore to ' + restore_type
+                            return_txt += ' volume <' + restore_id + '> since it does not exist"}'
+                            return return_txt
 
-                    # get the size of <restore_id> (the volume we are restoring to)
-                    cmd_str = "openstack_db_utils/get_rbd_size_in_bytes.py " + restore_id
-                    restore_volume_size = subprocess.check_output(cmd_str.split()).strip()
+                        # get the size of <restore_id> (the volume we are restoring to)
+                        cmd_str = "openstack_db_utils/get_rbd_size_in_bytes.py " + restore_id
+                        restore_volume_size = subprocess.check_output(cmd_str.split()).strip()
 
-                    # get the allocated size of the backed up volume
-                    cmd_str = "snappy_db_utils/get_alloc_size_from_jobid " + job_id
-                    alloc_size = subprocess.check_output(cmd_str.split()).strip()
+                        # get the allocated size of the backed up volume
+                        cmd_str = "snappy_db_utils/get_alloc_size_from_jobid " + job_id
+                        alloc_size = subprocess.check_output(cmd_str.split()).strip()
 
-                    # check that the size <restore_id> is >= allocated size
-                    if int(restore_volume_size) < int(alloc_size):
-                        return_str  = '{"status":"ERROR:  Not enough space.  Backup is ' + alloc_size
-                        return_str += ' bytes but volume to restore to is only ' + restore_volume_size + ' bytes."}'
-                        return return_str
+                        # check that the size <restore_id> is >= allocated size
+                        if int(restore_volume_size) < int(alloc_size):
+                            return_str  = '{"status":"ERROR:  Not enough space.  Backup is ' + alloc_size
+                            return_str += ' bytes but volume to restore to is only ' + restore_volume_size + ' bytes."}'
+                            return return_str
+
+			# if all of those checks are valid, then it is considered "verified"
+			rbd_verified = "true"
 
                     data['restore_to_volume_id'] = restore_id
 
@@ -219,30 +228,35 @@ def restore_main(tenant_id, job_id):
                     cmd_str += job_id + " "
                     cmd_str += restore_type
 
+		    print("will execute:  " + cmd_str)
+
                     new_job_id_str = subprocess.check_output(cmd_str.split())
-                
+		# restore to original volume
                 else:
-                    # first make sure that the original volume still exists
-                    cmd_str = "openstack_db_utils/does_rbd_volume_exist.py " + image_id
-                    rbd_vol_exists = subprocess.check_output(cmd_str.split())
+		    # do we have access to the "rbd" command to make verification checks on it?
+		    if does_cmd_exist("rbd") is True:
+	                # first make sure that the original volume still exists
+                        # assume it's the same size as it was before
+                        cmd_str = "openstack_db_utils/does_rbd_volume_exist.py " + image_id
+                        rbd_vol_exists = subprocess.check_output(cmd_str.split())
 
-                    if "true" in rbd_vol_exists:
-                        # Restore back to the original volume
-                        cmd_str = "./restore_to_original_volume " + image_id + " " + job_id
-                        new_job_id_str = subprocess.check_output(cmd_str.split())
-                    else:
+                        if "true" in rbd_vol_exists:
+                            # Restore back to the original volume
+			    rbd_verified = "true"
+			elif "unknown" in rbd_vol_exists:
+			    pass
+                        else:
+                            return_str  = '{"status":"ERROR:  Request to restore job <' + job_id
+                            return_str += '> to the orignal RBD volume <' + image_id
+                            return_str += '>, but it does not exist"}'
+                            return return_str
 
-                        return_str  = '{"status":"ERROR:  Request to restore job <' + job_id
-                        return_str += '> to the orignal RBD volume <' + image_id
-                        return_str += '>, but it does not exist"}'
-                        return return_str
+                    cmd_str = "./restore_to_original_volume " + image_id + " " + job_id
+                    new_job_id_str = subprocess.check_output(cmd_str.split())
 
-                        status_str = 'error_msg:  the RBD volume to restore to <'
-                        status_str += image_id + '> does not exist'
-                        data['status'] = status_str
                 # clean up the output
                 new_job_id_str = new_job_id_str.split("\n", 1)[-1].strip("\n")
-
+		data['rbd_verified'] = rbd_verified
                 data['status'] = 'Restore submitted'
                 data['restore_from_job_id'] = job_id
                 data['image_id'] = image_id
