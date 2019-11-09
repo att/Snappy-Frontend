@@ -22,6 +22,7 @@
 #     0.5.7.2:   authorization checks moved to "authCheck.py"
 #     0.5.7.3:   check authorization for all Restore requests
 #     0.5.7.4:   Restore requests can proceed without access to RBD command
+#     0.5.7.5:   List (Human readable) translates state number to state description
 
 
 import authCheck
@@ -34,6 +35,7 @@ import subprocess
 import json
 import web
 import distutils.spawn
+from snappy_db_utils.replacestatenum import describe_state_column
 
 URLS = ('/', 'Index',
     '/v2/(.+)/jobs/full', 'FullListV2All',
@@ -50,7 +52,7 @@ URLS = ('/', 'Index',
         '/v2/(.+)/jobs/', 'AddV2',
         '/v2/(.+)/jobs/(.+)', 'RestoreV2')
 
-VERSION = "0.5.7.4"
+VERSION = "0.5.7.5"
 index_msg = '{"status":"Snappy Frontend is running.  Submit REST commands to use.","version":"' + VERSION  + '"}'
 
 APP = web.application(URLS, globals())
@@ -646,7 +648,7 @@ class FullListV2All:
         ''' List is a GET command '''
         if does_tenant_exist(tenant_id) is False:
             return no_tenant_error(tenant_id)
-        return list_main(True, ".txt" not in web.ctx.path, 0)
+        return  describe_state_column(list_main(True, ".txt" not in web.ctx.path, 0))
 
 def strip_suffix(string, suffix):
     ''' Strip off a suffix from a string '''
@@ -665,7 +667,7 @@ class FullListV2Single:
         job_id = strip_suffix(job_id, ".txt")
         is_good, list_output, job_id = verify_list_input_v2(job_id)
         if is_good is True:
-            list_output = list_main(True, ".txt" not in web.ctx.path, job_id)
+            list_output =  describe_state_column(list_main(True, ".txt" not in web.ctx.path, job_id))
 
         return list_output
 
@@ -676,7 +678,7 @@ class SummaryListV2All:
         if does_tenant_exist(tenant_id) is False:
             return no_tenant_error(tenant_id)
 
-        return list_main(False, ".txt" not in web.ctx.path, 0)
+        return  describe_state_column(list_main(False, ".txt" not in web.ctx.path, 0))
 
 class SummaryListV2Single:
     ''' A summary list of one job in the Snappy DB '''
@@ -689,7 +691,7 @@ class SummaryListV2Single:
         is_good, list_output, job_id = verify_list_input_v2(job_id)
 
         if is_good is True:
-            list_output = list_main(False, ".txt" not in web.ctx.path, job_id)
+            list_output =  describe_state_column(list_main(False, ".txt" not in web.ctx.path, job_id))
 
         return list_output
 
