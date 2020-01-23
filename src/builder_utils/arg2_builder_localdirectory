@@ -1,0 +1,31 @@
+#!/bin/bash
+
+USAGE="Usage:  ./arg2_builder_local_directory <source_id> <target_id> <image_id> <notes>"
+
+if [[ "$#" -ne 4 ]]
+then
+  echo -e $USAGE
+  exit 1
+fi
+
+SOURCE_PROFILE=$1
+TARGET_PROFILE=$2
+IMAGE_ID=$3
+NOTES=$4
+
+# get the source and target JSON files from the local sqlite3 DB
+TEMP_SOURCE_JSON=$(builder_utils/jsonselectsource $SOURCE_PROFILE)
+TARGET_JSON=$(builder_utils/jsonselecttarget $TARGET_PROFILE)
+
+# We need to add in another key/value pair to the source so we can fill in the path later
+TEMP_SOURCE_JSON2=$(echo $TEMP_SOURCE_JSON | jq '.sp_param=(.sp_param + {"path":"LOCAL_DIRECTORY_PATH"})')
+SOURCE_JSON=$(echo $TEMP_SOURCE_JSON2 | jq '.sp_param=(.sp_param + {"notes":"COMMENTS"})')
+
+#combine those JSON strings together into one
+COMBINED=$(echo $SOURCE_JSON $TARGET_JSON | jq -s add)
+
+# insert the volume image ID
+ARG2=$(echo \'$COMBINED\' | sed -e "s~LOCAL_DIRECTORY_PATH~$IMAGE_ID~g" | sed -e "s~COMMENTS~$NOTES~g")
+
+echo $ARG2
+

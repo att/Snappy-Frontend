@@ -23,6 +23,7 @@
 #     0.5.7.3:   check authorization for all Restore requests
 #     0.5.7.4:   Restore requests can proceed without access to RBD command
 #     0.5.7.5:   List (Human readable) translates state number to state description
+#     0.5.8:     support for source_type "localdirectory" added
 
 
 import authCheck
@@ -52,7 +53,7 @@ URLS = ('/', 'Index',
         '/v2/(.+)/jobs/', 'AddV2',
         '/v2/(.+)/jobs/(.+)', 'RestoreV2')
 
-VERSION = "0.5.7.5"
+VERSION = "0.5.8"
 index_msg = '{"status":"Snappy Frontend is running.  Submit REST commands to use.","version":"' + VERSION  + '"}'
 
 APP = web.application(URLS, globals())
@@ -334,11 +335,28 @@ def is_int(s):
         except ValueError:
             return False
 
+# the "notes" field is optional, but if it exists, we will pass it do the Snappy DB
+def get_localdirectory_notes():
+    notes_str = "put notes here"
+
+    # The data was not in JSON format
+    try:
+        item_dict = json.loads(web.data())
+    except:
+        return notes_str
+
+    try:
+        notes_str = item_dict["notes"]
+    except KeyError:
+        return notes_str
+
+    return notes_str
+
+
 def verify_add_data():
-    '''
-     Make sure than the POST data was passed in as valid JSON
-    and the required data is included:  (full_interval, count)
-    '''
+    # Make sure than the POST data was passed in as valid JSON
+    # and the required data is included
+
     # default values
     count = "1"
     full_interval = "604800"     # 1 week
@@ -456,11 +474,14 @@ class AddV2:
         #   -  cinder
         #   -  kpv (Kubernetes Persistent Volume)
         #   -  kpvc Kubernetes Persistent Volume Claim)
+        #   -  localdirectory
 
         #  the following source_type values are currently supported:
-        #   - rbd
+        #   -  rbd
+        #   -  localdirectory
 
-        if (original_source_type == "rbd"):
+
+        if (original_source_type == "rbd") or (original_source_type == "localdirectory"):
             source_type = original_source_type
             source_id = original_source_id
 
@@ -489,17 +510,16 @@ class AddV2:
 
                 return return_txt
 
-
         elif (original_source_type == "kpv" or original_source_type == "kpvc"):
+
             # find out what the Kubernetes Persistent Volume (Claim) is backed by
             # and what the ID of that backing volume is
-
             if does_cmd_exist("kubectl") is False:
                 return '{"status":"error_msg:  cmd <kubectl> not found, please submit different source_type (e.g. rbd, cinder)"}'
 
             if (original_source_type == "kpvc"):
-                # check the PVC, if that was passed in
 
+                # check the PVC, if that was passed in
                 cmdStr = "kubernetes_utils/doesPVCexist.py " + original_source_id
                 pvc_exists = subprocess.check_output(cmdStr.split()).strip("\n")
                 if pvc_exists == "True":
@@ -531,6 +551,7 @@ class AddV2:
         else:
             return '{"status":"error_msg:  source_type <' + original_source_type  + '> not supported"}'
 
+
         # Get the source and target profiles associated with this tenant
         src_script = "./builder_utils/get_src_id_from_sp_name"
         tgt_script = "./builder_utils/get_tgt_id_from_tenant_name"
@@ -538,14 +559,16 @@ class AddV2:
         target_type_num = subprocess.check_output([tgt_script, tenant_id]).strip("\n")
 
         if len(source_type_num) == 0:
-            return '{"status":"error_msg:  source type <' + source_type + '> not supported"}'
+            return '{"status":"error_msg:  source type <' + source_type + '> not configured"}'
 
+
+
+	# Submit a new job to the Snappy Database
 
         if (source_type == "rbd"):
-        # Submit a new job to the Snappy Database
 
             # In cases where we don't have access to the rbd command, we can
-            # still submit jobs, but they are not guaranteed to exist.
+            # still submit jobs, but the RBD volumes are not guaranteed to exist.
             # If this happens, the job would result in an error
             # Therefore it is preferred that the frontend has access to the RBD command
             rbd_verified = "false"
@@ -561,9 +584,7 @@ class AddV2:
                 else:
                     return '{"status":"error_msg:  rbd volume <' + source_id + '> not found, will not submit backup request"}'
 
-
-
-            # compose command to add new backup job
+            # compose command to add new rbd backup job
             cmd_str ="./add_rbd_backup_single_scheduled_tenants "
             cmd_str += source_id + " "
             cmd_str += full_interval + " "
@@ -579,6 +600,31 @@ class AddV2:
 
             data['status'] = 'add request for RBD ID <' + source_id + '> submitted'
             data['rbd_verified'] = rbd_verified
+            data['job_id'] = new_id
+            data['full_interval'] = full_interval
+            data['delta_interval'] = delta_interval
+            data['count'] = count
+
+	# compose command to add new localdirectory backup job
+	elif (source_type == "localdirectory"):
+            cmd_str = "./add_localdirectory_backup_single_scheduled_tenants "
+            cmd_str += source_id + " "
+            cmd_str += full_interval + " "
+            cmd_str += count + " "
+            cmd_str += str(source_type_num) + " "
+            cmd_str += str(target_type_num) + " "
+            cmd_str += original_source_type + " "
+            cmd_str += original_source_id + " "
+
+            cmd2 = cmd_str.split()
+            notes_text = '"' + get_localdirectory_notes() + '"'
+            cmd2.append(notes_text)
+
+            # execute command
+            add_return_txt = subprocess.check_output(cmd2)
+            new_id = add_return_txt.split("\n")[-2]
+
+            data['status'] = 'add request for localdirectory <' + source_id + '> submitted'
             data['job_id'] = new_id
             data['full_interval'] = full_interval
             data['delta_interval'] = delta_interval
@@ -604,7 +650,7 @@ def isPosInt(i):
         if int(i) > 0:
             answer = True
     return answer
-    
+
 def verify_list_input_v2(job_id):
     ''' Verity that the input is valid for a List Single request '''
 
