@@ -15,7 +15,10 @@ SOURCE_ID=$4
 TARGET_ID=$5
 ORIG_SRC_TYPE=$6
 ORIG_SRC_ID=$7
-NOTES=$8
+NOTES_TEMP=$8
+
+# strip off the first and last character (extra quotes)
+NOTES=${NOTES_TEMP:1:-1}
 
 # since we're not doing incremental backups here, make the interval for it
 # bigger than the full backup interval so that it never gets executed
