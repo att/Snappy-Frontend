@@ -52,10 +52,10 @@ def print_tables(filename):
     data = read_in_json(filename)
 
     print("")
-    print('{:<10}  {:<30}  {:<5}  {:<10} {:<10}  {:<10}'.format("SOURCES","Name","sp_id","sp_name","sp_ver","sp_param"))
+    print('{:<10}  {:<30}  {:<5}  {:<20} {:<10}  {:<10}'.format("SOURCES","Name","sp_id","sp_name","sp_ver","sp_param"))
     for s in data['sources']:
         sp_param_text = json.dumps(s['sp_param'])
-        print('{:<10}  {:<30}  {:<5}  {:<10} {:<10}  {:<10}'.format("", s['source_name'], s['sp_id'], s['sp_name'], s['sp_ver'], sp_param_text))
+        print('{:<10}  {:<30}  {:<5}  {:<20} {:<10}  {:<10}'.format("", s['source_name'], s['sp_id'], s['sp_name'], s['sp_ver'], sp_param_text))
 
     print("")
     print("")
@@ -119,7 +119,7 @@ def add_source(filename):
 
     # get the data needed for the new Tenant
     source_name = raw_input("Enter Source name:")
-    sp_name = raw_input("Enter Source Plugin (SP) Name.  Choices are (rbd):")
+    sp_name = raw_input("Enter Source Plugin (SP) Name.  Choices are (rbd, localdirectory):")
     sp_id = ""
     sp_ver = ""
     if (sp_name == "rbd"):
@@ -129,11 +129,17 @@ def add_source(filename):
         rbd_mon_host = raw_input("Enter RBD (Ceph) monitor host:")
         rbd_key = raw_input("Enter RBD (Ceph) key:")
         rbd_pool = raw_input("Enter RBD pool:")
-        # construct the JSON for the Source Plugin (SP) part
+        # construct the JSON for the RBD Source Plugin (SP) part
         new_sp_entry['user'] = rbd_user
         new_sp_entry['mon_host'] = rbd_mon_host
         new_sp_entry['key'] = rbd_key
         new_sp_entry['pool'] = rbd_pool
+    elif (sp_name == "localdirectory"):
+	sp_id = "1002"
+	sp_ver = "0.1.0"
+        # The localdirectory SP part is empty in this table.
+	# The path will be filled in as each backup request is received.
+	# (see builder_utils/arg2_builder_localdirectory)
     else:
         print("unknown Source Plugin (SP) " + sp_name)
         sys.exit()
