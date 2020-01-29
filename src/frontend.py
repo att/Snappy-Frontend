@@ -24,6 +24,7 @@
 #     0.5.7.4:   Restore requests can proceed without access to RBD command
 #     0.5.7.5:   List (Human readable) translates state number to state description
 #     0.5.8:     support for source_type "localdirectory" added
+#     0.5.8.1:     the process ID is written to frontend.pid when frontend.py starts
 
 
 import authCheck
@@ -53,7 +54,7 @@ URLS = ('/', 'Index',
         '/v2/(.+)/jobs/', 'AddV2',
         '/v2/(.+)/jobs/(.+)', 'RestoreV2')
 
-VERSION = "0.5.8"
+VERSION = "0.5.8.1"
 index_msg = '{"status":"Snappy Frontend is running.  Submit REST commands to use.","version":"' + VERSION  + '"}'
 
 APP = web.application(URLS, globals())
@@ -749,6 +750,11 @@ def main():
 
 if __name__ == "__main__":
     print("Snappy Frontend version " + VERSION)
+
+    print("Frontend running with PID " + str(os.getpid()))
+    fd = open("frontend.pid", "w")
+    fd.write(str(os.getpid()))
+    fd.close()
 
     # delete previous file for local Tables (default:  "frontendTables.db")
     db_filename = os.environ['FRONTEND_DB_FILENAME']
