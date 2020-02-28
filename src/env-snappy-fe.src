@@ -5,12 +5,10 @@ export SNAPPY_HOST=10.0.1.42
 export SNAPPY_DB=snappy
 export SNAPPY_PORT=30303
 
+
 # Openstack database information (for Cinder backups)
-export OPENSTACK_HOST=mariadb.openstack.svc.cluster.local
-export OPENSTACK_USER=nova
-export OPENSTACK_PW=my-openstack-pw
-export OPENSTACK_DB=nova
-export OPENSTACK_PORT=3306
+export CINDER_AGENT_HOST=192.168.100.1
+export CINDER_AGENT_PORT=34567
 
 # Logging info
 export SNAPPY_LOG_NAME="Snappy Backups"

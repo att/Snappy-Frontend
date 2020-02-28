@@ -26,7 +26,7 @@
 #     0.5.8:     support for source_type "localdirectory" added
 #     0.5.8.1:   the process ID is written to frontend.pid when frontend.py starts
 #     0.5.8.2:   tablesEditor now supports the "localdirectory" source
-
+#     0.6.0:     support for getting Cinder information from an agent
 
 import authCheck
 import sqlite3
@@ -55,7 +55,7 @@ URLS = ('/', 'Index',
         '/v2/(.+)/jobs/', 'AddV2',
         '/v2/(.+)/jobs/(.+)', 'RestoreV2')
 
-VERSION = "0.5.8.2"
+VERSION = "0.6.0"
 index_msg = '{"status":"Snappy Frontend is running.  Submit REST commands to use.","version":"' + VERSION  + '"}'
 
 APP = web.application(URLS, globals())
@@ -187,9 +187,21 @@ def restore_main(tenant_id, job_id):
                 ### Restore to a diffrent volume
                 if (len(web.data()) > 0):
                     is_valid, restore_type, restore_id = verify_restore_data()
-                    if ("input valid" not in is_valid):
+
+		    if ("input valid" not in is_valid):
                         return is_valid
                     return_str = '{"status":"restore to a different volume"}'
+
+		    if "cinder_id" in restore_type:
+        		cinder_backed_by = cinder_id_to_backing_type(restore_id)
+
+                        if len(cinder_backed_by) < 1:
+			    return '{"status":"ERROR:  cinder_id <' + restore_id + '> not found"}' 
+		        elif "rbd" in cinder_backed_by:
+                		restore_type = "rbd"
+                		restore_id = cinder_id_to_rbd(restore_id)
+			# else if "lvm" in cinder_backed_by
+			# (and other ways to back cinder)
 
                     # check to see if this restore_type is supported
                     cmd_str = "builder_utils/get_src_id_from_sp_name " + restore_type
@@ -232,8 +244,6 @@ def restore_main(tenant_id, job_id):
                     cmd_str += restore_id + " "
                     cmd_str += job_id + " "
                     cmd_str += restore_type
-
-		    print("will execute:  " + cmd_str)
 
                     new_job_id_str = subprocess.check_output(cmd_str.split())
 		# restore to original volume
@@ -306,9 +316,16 @@ class RestoreV2:
 #     - Kubernetes Persistent Volumes
 #
 
-def cinder_to_rbd(cinder_id):
+def cinder_id_to_backing_type(cinder_id):
+    ''' Get the backing type for a Cinder Volume from its ID  '''
+    cmd_str = "openstack_db_utils/get_cinder_volume_type_via_agent " + cinder_id
+    cinder_backed_by = subprocess.check_output(cmd_str.split()).strip("\n")
+
+    return cinder_backed_by
+
+def cinder_id_to_rbd(cinder_id):
     ''' Translate Cinder to RBD  '''
-    cmd = "openstack_db_utils/get_rbd_from_cinder " + cinder_id
+    cmd = "openstack_db_utils/get_rbd_from_cinder_via_agent " + cinder_id
     rbd_id = subprocess.check_output(cmd.split()).strip("\n")
     
     return rbd_id
@@ -473,7 +490,7 @@ class AddV2:
 
         #  the following original_source_type values are currently supported:
         #   -  rbd
-        #   -  cinder
+        #   -  cinder_id
         #   -  kpv (Kubernetes Persistent Volume)
         #   -  kpvc Kubernetes Persistent Volume Claim)
         #   -  localdirectory
@@ -487,11 +504,12 @@ class AddV2:
             source_type = original_source_type
             source_id = original_source_id
 
-        elif (original_source_type == "cinder"):
-            # find out what Cinder is backed by
+        elif (original_source_type == "cinder_id"):
+	    # find out what Cinder is backed by
             # and what the ID of that backing volume is
-            cmd_str="openstack_db_utils/get_cinder_volume_type " + original_source_id
-            cinder_backing_type = subprocess.check_output(cmd_str.split()).strip("\n")
+#            cmd_str="openstack_db_utils/get_cinder_volume_type_via_agent " + original_source_id
+#            cinder_backing_type = subprocess.check_output(cmd_str.split()).strip("\n")
+	    cinder_backing_type = cinder_id_to_backing_type(original_source_id)
 
             # does this Cinder ID exist
             if len(cinder_backing_type) < 2:
@@ -499,7 +517,7 @@ class AddV2:
             # is this Cinder ID backed by RBD
             if "rbd" in cinder_backing_type:
                 source_type = "rbd"
-                source_id = cinder_to_rbd(original_source_id)
+                source_id = cinder_id_to_rbd(original_source_id)
 # An example of how to add more cinder backing types
 #            elif cinder_backing_type == "iscsi":
 #                source_type = iscsi
@@ -511,6 +529,7 @@ class AddV2:
                 return_txt += ' "}'
 
                 return return_txt
+
 
         elif (original_source_type == "kpv" or original_source_type == "kpvc"):
 

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+HOST=$CINDER_AGENT_HOST
+PORT=$CINDER_AGENT_PORT
+
+CINDER_ID=$1
+
+RBD_ID=$(curl -X GET $HOST:$PORT/v1/cinder/rbd/$CINDER_ID | jq '.rbd_id' | tr -d '"')
+
+echo $RBD_ID
+
